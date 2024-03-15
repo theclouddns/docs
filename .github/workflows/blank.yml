@@ -1,36 +1,43 @@
-# This is a basic workflow to help you get started with Actions
+name: Github Pages Azure DNS resources
 
-name: CI
-
-# Controls when the workflow will run
-on:
-  # Triggers the workflow on push or pull request events but only for the "main" branch
-  push:
-    branches: [ "main" ]
-  pull_request:
-    branches: [ "main" ]
-
-  # Allows you to run this workflow manually from the Actions tab
+on: 
   workflow_dispatch:
+  push:
+    paths:
+      - 'azure/**'
+      - '.github/workflows/azure.yml'
 
-# A workflow run is made up of one or more jobs that can run sequentially or in parallel
-jobs:
-  # This workflow contains a single job called "build"
-  build:
-    # The type of runner that the job will run on
+permissions:
+  id-token: write
+  contents: read
+
+jobs: 
+  build-and-deploy:
     runs-on: ubuntu-latest
-
-    # Steps represent a sequence of tasks that will be executed as part of the job
+    environment: github-pages
     steps:
-      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
-      - uses: actions/checkout@v3
+      - name: Checkout code
+        uses: actions/checkout@v3
 
-      # Runs a single command using the runners shell
-      - name: Run a one-line script
-        run: echo Hello, world!
+      - name: 'Az CLI login'
+        uses: azure/login@v1
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      # Runs a set of commands using the runners shell
-      - name: Run a multi-line script
+      - name: 'List cloud-docs.info azure resources'
         run: |
-          echo Add other actions to build,
-          echo test, and deploy your project.
+          az network dns record-set list --resource-group dns-rg --zone-name "cloud-docs.info"
+
+      - name: 'Deploy Azure DNS resources'
+        working-directory: azure/
+        run: |
+          githubRepositories=$(awk -v ORS=', ' '{ print "\""$1"\""}' repositories.csv | sed 's/, $//')
+          command="az deployment group create --resource-group dns-rg --template-file azure-dns.bicep --parameters dnsZoneName=\"cloud-docs.info\"  --parameters repositoryNames=\"[$githubRepositories]\""
+          echo $command
+          eval $command
+
+      - name: 'Deployed cloud-docs.info azure resources'
+        run: |
+          az network dns record-set list --resource-group dns-rg --zone-name "cloud-docs.info"
