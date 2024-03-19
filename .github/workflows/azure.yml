@@ -1,43 +1,43 @@
 name: Github Pages Azure DNS resources
 
-on: 
+on:
   workflow_dispatch:
   push:
     paths:
-      - 'azure/**'
-      - '.github/workflows/azure.yml'
+      - "azure/**"
+      - ".github/workflows/azure.yml"
 
 permissions:
   id-token: write
   contents: read
 
-jobs: 
+jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
-   
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: 'Az CLI login'
+      - name: "Az CLI login"
         uses: azure/login@v1
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      - name: 'List cloud-docs.info azure resources'
+      - name: "List cloud-docs.info azure resources"
         run: |
           az network dns record-set list --resource-group dns-rg --zone-name "cloud-docs.info"
 
-      - name: 'Deploy Azure DNS resources'
-        working-directory: azure/
+      - name: "Deploy Azure DNS resources"
+
         run: |
           githubRepositories=$(awk -v ORS=', ' '{ print "\""$1"\""}' repositories.csv | sed 's/, $//')
           command="az deployment group create --resource-group dns-rg --template-file azure-dns.bicep --parameters dnsZoneName=\"cloud-docs.info\"  --parameters repositoryNames=\"[$githubRepositories]\""
           echo $command
           eval $command
 
-      - name: 'Deployed cloud-docs.info azure resources'
+      - name: "Deployed cloud-docs.info azure resources"
         run: |
           az network dns record-set list --resource-group dns-rg --zone-name "cloud-docs.info"
