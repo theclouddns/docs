@@ -42,12 +42,37 @@ jobs:
 
       - name: Deploy Azure DNS resources
         run: |
-          githubRepositories='${{ steps.list_repos.outputs.repositories }}'
-          command="az deployment group create --resource-group dns-rg --template-file azure-dns.bicep --parameters dnsZoneName='cloud-docs.info' --parameters repositoryNames='$githubRepositories'"
+          githubRepositories=${{ steps.list_repos.outputs.repositories }}
+          command="az deployment group create --resource-group dns-rg --template-file azure-dns.bicep --parameters dnsZoneName='cloud-docs.info' --parameters repositoryNames=$githubRepositories"
           echo $command
-          eval $command
-
           eval $command
 
       - name: Deployed cloud-docs.info azure resources
         run: az network dns record-set list --resource-group dns-rg --zone-name "cloud-docs.info"
+
+      - name: Setup GitHub Pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_branch: gh-pages  # or main if you're using /docs
+          publish_dir: .  # path to your site's build directory
+
+      - name: Configure GitHub Pages Custom Domain
+        uses: actions/github-script@v5
+        with:
+          github-token: ${{ secrets.GH_TOKEN }}
+          script: |
+            await github.rest.repos.createPagesSite({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              source: {
+                branch: "gh-pages",  # or main, depending on your setup
+                path: "/"
+              }
+            });
+            await github.rest.repos.updateInformationAboutPagesSite({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              cname: "${{ steps.set_domain.outputs.domain_name }}",  # Replace with the actual domain name variable from your DNS setup step
+              https_enforced: true
+            });
