@@ -54,12 +54,13 @@ jobs:
 
       - name: Configure GitHub Pages Custom Domain with GitHub CLI
         run: |
-          gh api \
-            -H "Accept: application/vnd.github+json" \
-            -H "X-GitHub-Api-Version: 2022-11-28" \
-            -X PATCH \
-            /repos/${{ github.repository }}/pages \
-            -f cname=${{ steps.deploy_dns.outputs.domain_name }} \
-            -f https_enforced=true
-        env:
+         gh api \
+         -H "Accept: application/vnd.github+json" \
+         -H "X-GitHub-Api-Version: 2022-11-28" \
+         -X PATCH \
+         /repos/${{ github.repository_owner }}/${{ github.event.repository.name }}/pages \
+         -f cname=${{ steps.deploy_dns.outputs.domain_name }} \
+         -f https_enforced=true
+         env:
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
+
