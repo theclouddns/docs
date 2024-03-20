@@ -44,7 +44,7 @@ jobs:
         id: deploy_dns 
         run: |
           githubRepositories='${{ steps.list_repos.outputs.repositories }}'
-          command="az deployment group create --resource-group dns-rg --template-file azure-dns.bicep --parameters dnsZoneName='cloud-docs.info' --parameters repositoryNames=$githubRepositories"
+          command="az deployment group create --resource-group dns-rg --template-file azure-dns.bicep --parameters dnsZoneName='cloud-docs.info' --parameters repositoryNames=\$githubRepositories"
           echo $command
           eval $command
           echo "::set-output name=domain_name::cloud-docs.info" 
