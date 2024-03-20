@@ -61,7 +61,7 @@ jobs:
               owner: context.repo.owner,
               repo: context.repo.repo,
               source: {
-                branch: source  # or main, depending on your setup
+                branch: source
                 path: "/"
               }
             });
