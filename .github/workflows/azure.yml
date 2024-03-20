@@ -35,8 +35,7 @@ jobs:
         with:
           github-token: ${{ secrets.GH_TOKEN }}
           script: |
-            const octokit = github.getOctokit(process.env.GH_TOKEN);
-            const response = await octokit.rest.repos.listForAuthenticatedUser();
+            const response = await github.rest.repos.listForAuthenticatedUser();
             const repoNames = response.data.map(repo => repo.name);
             console.log(repoNames);
             core.setOutput('repositories', repoNames.join(','));
