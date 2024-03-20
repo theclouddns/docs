@@ -42,9 +42,11 @@ jobs:
 
       - name: Deploy Azure DNS resources
         run: |
-          githubRepositories=${{ steps.list_repos.outputs.repositories }}
-          command="az deployment group create --resource-group dns-rg --template-file azure-dns.bicep --parameters dnsZoneName='cloud-docs.info'  --parameters repositoryNames='[$githubRepositories]'"
+          githubRepositories='${{ steps.list_repos.outputs.repositories }}'
+          command="az deployment group create --resource-group dns-rg --template-file azure-dns.bicep --parameters dnsZoneName='cloud-docs.info' --parameters repositoryNames='$githubRepositories'"
           echo $command
+          eval $command
+
           eval $command
 
       - name: Deployed cloud-docs.info azure resources
