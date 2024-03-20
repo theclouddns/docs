@@ -68,6 +68,6 @@ jobs:
             await github.rest.repos.updateInformationAboutPagesSite({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              cname: "${{ steps.set_domain.outputs.domain_name }}",  # Replace with the actual domain name variable from your DNS setup step
+              cname: "${{ steps.set_domain.outputs.domain_name }}"
               https_enforced: true
             });
