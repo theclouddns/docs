@@ -38,7 +38,7 @@ jobs:
             const response = await github.rest.repos.listForAuthenticatedUser();
             const repoNames = response.data.map(repo => repo.name);
             console.log(repoNames);
-            core.setOutput('repositories', repoNames.join(','));
+            core.setOutput('repositories', JSON.stringify(repoNames));
 
       - name: Deploy Azure DNS resources
         run: |
