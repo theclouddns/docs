@@ -19,89 +19,34 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: "Az CLI login"
+      - name: Az CLI login
         uses: azure/login@v1
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      - name: "List cloud-docs.info azure resources"
-        run: |
-          az network dns record-set list --resource-group dns-rg --zone-name "cloud-docs.info"
+      - name: List cloud-docs.info azure resources
+        run: az network dns record-set list --resource-group dns-rg --zone-name "cloud-docs.info"
 
-      - name: "List GitHub Repositories"
-        id: list_repos
-        uses: actions/github-script@v5
-        with:name: Github Pages Azure DNS resources
-
-on:
-  workflow_dispatch:
-  push:
-    paths:
-      - "azure/**"
-      - ".github/workflows/azure.yml"
-
-permissions:
-  id-token: write
-  contents: read
-
-jobs:
-  build-and-deploy:
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-
-      - name: "Az CLI login"
-        uses: azure/login@v1
-        with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-
-      - name: "List cloud-docs.info azure resources"
-        run: |
-          az network dns record-set list --resource-group dns-rg --zone-name "cloud-docs.info"
-
-      - name: "List GitHub Repositories"
+      - name: List GitHub Repositories
         id: list_repos
         uses: actions/github-script@v5
         with:
           github-token: ${{ secrets.GH_TOKEN }}
           script: |
-            const octokit = github.getOctokit('${{ secrets.GH_TOKEN }}');
+            const octokit = github.getOctokit(process.env.GH_TOKEN);
             const response = await octokit.rest.repos.listForAuthenticatedUser();
             const repoNames = response.data.map(repo => repo.name);
             console.log(repoNames);
             core.setOutput('repositories', repoNames.join(','));
 
-      - name: "Deploy Azure DNS resources"
+      - name: Deploy Azure DNS resources
         run: |
           githubRepositories=${{ steps.list_repos.outputs.repositories }}
-          command="az deployment group create --resource-group dns-rg --template-file azure-dns.bicep --parameters dnsZoneName=\"cloud-docs.info\" --parameters repositoryNames=\"[$githubRepositories]\""
+          command="az deployment group create --resource-group dns-rg --template-file azure-dns.bicep --parameters dnsZoneName='cloud-docs.info'  --parameters repositoryNames='[$githubRepositories]'"
           echo $command
           eval $command
 
-      - name: "Deployed cloud-docs.info azure resources"
-        run: |
-          az network dns record-set list --resource-group dns-rg --zone-name "cloud-docs.info"
-
-          github-token: ${{ secrets.GH_TOKEN }}  # Use the secret token here
-          script: |
-            const response = await github.repos.listForAuthenticatedUser();
-            const repoNames = response.data.map(repo => repo.name);
-            console.log(repoNames);
-            core.setOutput('repositories', repoNames.join(','));
-
-      - name: "Deploy Azure DNS resources"
-        run: |
-          githubRepositories=${{ steps.list_repos.outputs.repositories }}
-          command="az deployment group create --resource-group dns-rg --template-file azure-dns.bicep --parameters dnsZoneName=\"cloud-docs.info\"  --parameters repositoryNames=\"[$githubRepositories]\""
-          echo $command
-          eval $command
-
-      - name: "Deployed cloud-docs.info azure resources"
-        run: |
-          az network dns record-set list --resource-group dns-rg --zone-name "cloud-docs.info"
+      - name: Deployed cloud-docs.info azure resources
+        run: az network dns record-set list --resource-group dns-rg --zone-name "cloud-docs.info"
