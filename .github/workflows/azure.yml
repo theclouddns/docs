@@ -43,7 +43,7 @@ jobs:
       - name: Deploy Azure DNS resources
         id: deploy_dns  # Added an ID to this step
         run: |
-          githubRepositories=${{ steps.list_repos.outputs.repositories }}
+          githubRepositories='${{ steps.list_repos.outputs.repositories }}'
           command="az deployment group create --resource-group dns-rg --template-file azure-dns.bicep --parameters dnsZoneName='cloud-docs.info' --parameters repositoryNames=$githubRepositories"
           echo $command
           eval $command
