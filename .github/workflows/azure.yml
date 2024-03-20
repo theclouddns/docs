@@ -61,7 +61,7 @@ jobs:
           /repos/${{ github.repository_owner }}/${{ github.event.repository.name }}/pages \
           -f cname=cloud-docs.info \
           -f https_enforced=true
-          env:
+        env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
 
