@@ -30,10 +30,20 @@ jobs:
         run: |
           az network dns record-set list --resource-group dns-rg --zone-name "cloud-docs.info"
 
-      - name: "Deploy Azure DNS resources"
+      - name: "List GitHub Repositories"
+        id: list_repos
+        uses: actions/github-script@v5
+        with:
+          github-token: ${{ secrets.GH_TOKEN }}  # Use the secret token here
+          script: |
+            const response = await github.repos.listForAuthenticatedUser();
+            const repoNames = response.data.map(repo => repo.name);
+            console.log(repoNames);
+            core.setOutput('repositories', repoNames.join(','));
 
+      - name: "Deploy Azure DNS resources"
         run: |
-          githubRepositories=$(awk -v ORS=', ' '{ print "\""$1"\""}' repositories.csv | sed 's/, $//')
+          githubRepositories=${{ steps.list_repos.outputs.repositories }}
           command="az deployment group create --resource-group dns-rg --template-file azure-dns.bicep --parameters dnsZoneName=\"cloud-docs.info\"  --parameters repositoryNames=\"[$githubRepositories]\""
           echo $command
           eval $command
