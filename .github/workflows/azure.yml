@@ -41,16 +41,16 @@ jobs:
             core.setOutput('repositories', JSON.stringify(repoNames));
 
       - name: Deploy Azure DNS resources
+        id: deploy_dns  # Added an ID to this step
         run: |
-          githubRepositories='${{ steps.list_repos.outputs.repositories }}'
-          command="az deployment group create --resource-group dns-rg --template-file azure-dns.bicep --parameters dnsZoneName='cloud-docs.info' --parameters repositoryNames='$githubRepositories'"
+          githubRepositories=${{ steps.list_repos.outputs.repositories }}
+          command="az deployment group create --resource-group dns-rg --template-file azure-dns.bicep --parameters dnsZoneName='cloud-docs.info' --parameters repositoryNames=$githubRepositories"
           echo $command
           eval $command
+          echo "::set-output name=domain_name::cloud-docs.info"  # Set the output for the domain name
 
       - name: Deployed cloud-docs.info azure resources
         run: az network dns record-set list --resource-group dns-rg --zone-name "cloud-docs.info"
-
-     
 
       - name: Configure GitHub Pages Custom Domain
         uses: actions/github-script@v5
@@ -68,6 +68,6 @@ jobs:
             await github.rest.repos.updateInformationAboutPagesSite({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              cname: "${{ steps.set_domain.outputs.domain_name }}"
+              cname: "${{ steps.deploy_dns.outputs.domain_name }}",  # Dynamically set the cname
               https_enforced: true
             });
