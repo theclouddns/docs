@@ -62,7 +62,7 @@ jobs:
             try {
               Invoke-RestMethod -Uri $url -Method Post -Body $body -ContentType "application/json" -Headers @{Authorization=("Basic {0}" -f $base64AuthInfo)}
             } catch {
-              Write-Host "Attempt to enable GitHub Pages or set domain failed for $repo: $_"
+              Write-Host "Attempt to enable GitHub Pages or set domain failed for ${repo}: $_"
             }
           }
         shell: pwsh
