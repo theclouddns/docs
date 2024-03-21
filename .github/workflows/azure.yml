@@ -72,7 +72,7 @@ jobs:
                 Write-Host "GitHub Pages configuration for $repo is already up to date."
               } else {
                 Write-Host "Updating GitHub Pages configuration for ${repo}..."
-                Invoke-RestMethod -Uri $url -Method Patch -Body $bodyJson -Headers $headers
+                Invoke-RestMethod -Uri $url -Method Put -Body $bodyJson -Headers $headers
                 Write-Host "Successfully updated GitHub Pages configuration for ${repo}."
               }
             } catch {
