@@ -53,24 +53,36 @@ jobs:
           $repos = '${{ steps.list_repos.outputs.repositories }}' | ConvertFrom-Json
           foreach ($repo in $repos) {
             $url = "https://api.github.com/repos/${{ github.actor }}/$repo/pages"
+            $headers = @{
+              "Authorization" = "Bearer ${{ secrets.GH_TOKEN }}"
+              "Accept" = "application/vnd.github+json"
+              "Content-Type" = "application/json"
+            }
             $body = @{
               source = @{ branch = "main"; path = "/docs" }
               cname = "$repo.cloud-docs.info"
               https_enforced = $true
-            } | ConvertTo-Json -Compress
-            $base64AuthInfo = [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes(":${{ secrets.GH_TOKEN }}"))
+            }
+            $bodyJson = $body | ConvertTo-Json -Compress
+            
             try {
-              Invoke-RestMethod -Uri $url -Method Post -Body $body -ContentType "application/json" -Headers @{Authorization=("Basic {0}" -f $base64AuthInfo)}
-            } catch {
-              if ($_.Exception.Response.StatusCode -eq 422) { # Unprocessable Entity
-                try {
-                  Invoke-RestMethod -Uri $url -Method Patch -Body $body -ContentType "application/json" -Headers @{Authorization=("Basic {0}" -f $base64AuthInfo)}
-                  Write-Host "Successfully updated GitHub Pages configuration for ${repo}."
-                } catch {
-                  Write-Host "Failed to update GitHub Pages configuration for ${repo}: $_"
-                }
+              $currentPageConfig = Invoke-RestMethod -Uri $url -Method Get -Headers $headers
+              
+              if ($null -ne $currentPageConfig.cname -and $currentPageConfig.cname -eq $body.cname) {
+                Write-Host "GitHub Pages configuration for $repo is already up to date."
               } else {
-                Write-Host "Attempt to enable GitHub Pages or set domain failed for ${repo}: $_"
+                Write-Host "Updating GitHub Pages configuration for $repo..."
+                Invoke-RestMethod -Uri $url -Method Patch -Body $bodyJson -Headers $headers
+                Write-Host "Successfully updated GitHub Pages configuration for $repo."
+              }
+            } catch {
+              Write-Host "Attempt to enable or update GitHub Pages failed for $repo: $_"
+              try {
+                Write-Host "Attempting to enable GitHub Pages for $repo..."
+                Invoke-RestMethod -Uri $url -Method Post -Body $bodyJson -Headers $headers
+                Write-Host "Successfully enabled GitHub Pages for $repo."
+              } catch {
+                Write-Host "Failed to enable GitHub Pages for $repo: $_"
               }
             }
           }
