@@ -47,6 +47,11 @@ jobs:
           echo $command
           eval $command
           echo "::set-output name=domain_name::${{ github.event.repository.name }}.cloud-docs.info"
+          
+      - name: Wait before enabling GitHub Pages
+        run: Start-Sleep -Seconds 90
+        shell: pwsh
+          
 
       - name: Enable GitHub Pages and set custom domain for each repository
         run: |
