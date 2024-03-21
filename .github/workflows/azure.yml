@@ -64,25 +64,30 @@ jobs:
               https_enforced = $true
             }
             $bodyJson = $body | ConvertTo-Json -Compress
-            
-            try {
-              $currentPageConfig = Invoke-RestMethod -Uri $url -Method Get -Headers $headers
-              
-              if ($null -ne $currentPageConfig.cname -and $currentPageConfig.cname -eq $body.cname) {
-                Write-Host "GitHub Pages configuration for $repo is already up to date."
-              } else {
-                Write-Host "Updating GitHub Pages configuration for ${repo}..."
-                Invoke-RestMethod -Uri $url -Method Put -Body $bodyJson -Headers $headers
-                Write-Host "Successfully updated GitHub Pages configuration for ${repo}."
-              }
-            } catch {
-              Write-Host "Attempt to enable or update GitHub Pages failed for ${repo}: $_"
+            $retryCount = 0
+            $maxRetries = 3
+            $retryDelaySeconds = 30
+            while ($true) {
               try {
-                Write-Host "Attempting to enable GitHub Pages for ${repo}..."
-                Invoke-RestMethod -Uri $url -Method Post -Body $bodyJson -Headers $headers
-                Write-Host "Successfully enabled GitHub Pages for ${repo}."
+                $currentPageConfig = Invoke-RestMethod -Uri $url -Method Get -Headers $headers
+                if ($null -ne $currentPageConfig.cname -and $currentPageConfig.cname -eq $body.cname) {
+                  Write-Host "GitHub Pages configuration for $repo is already up to date."
+                  break
+                } else {
+                  Write-Host "Updating GitHub Pages configuration for ${repo}..."
+                  Invoke-RestMethod -Uri $url -Method Put -Body $bodyJson -Headers $headers
+                  Write-Host "Successfully updated GitHub Pages configuration for ${repo}."
+                  break
+                }
               } catch {
-                Write-Host "Failed to enable GitHub Pages for ${repo}: $_"
+                if ($_ -match "The certificate does not exist yet" -and $retryCount -lt $maxRetries) {
+                  Write-Host "Waiting for certificate provisioning. Retrying in $retryDelaySeconds seconds..."
+                  Start-Sleep -Seconds $retryDelaySeconds
+                  $retryCount++
+                } else {
+                  Write-Host "Attempt to enable or update GitHub Pages failed for ${repo}: $_"
+                  break
+                }
               }
             }
           }
