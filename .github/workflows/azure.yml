@@ -71,18 +71,18 @@ jobs:
               if ($null -ne $currentPageConfig.cname -and $currentPageConfig.cname -eq $body.cname) {
                 Write-Host "GitHub Pages configuration for $repo is already up to date."
               } else {
-                Write-Host "Updating GitHub Pages configuration for $repo..."
+                Write-Host "Updating GitHub Pages configuration for ${repo}..."
                 Invoke-RestMethod -Uri $url -Method Patch -Body $bodyJson -Headers $headers
-                Write-Host "Successfully updated GitHub Pages configuration for $repo."
+                Write-Host "Successfully updated GitHub Pages configuration for ${repo}."
               }
             } catch {
-              Write-Host "Attempt to enable or update GitHub Pages failed for $repo: $_"
+              Write-Host "Attempt to enable or update GitHub Pages failed for ${repo}: $_"
               try {
-                Write-Host "Attempting to enable GitHub Pages for $repo..."
+                Write-Host "Attempting to enable GitHub Pages for ${repo}..."
                 Invoke-RestMethod -Uri $url -Method Post -Body $bodyJson -Headers $headers
-                Write-Host "Successfully enabled GitHub Pages for $repo."
+                Write-Host "Successfully enabled GitHub Pages for ${repo}."
               } catch {
-                Write-Host "Failed to enable GitHub Pages for $repo: $_"
+                Write-Host "Failed to enable GitHub Pages for ${repo}: $_"
               }
             }
           }
