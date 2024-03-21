@@ -1,13 +1,16 @@
 name: Github Pages Azure DNS resources
+
 on:
   workflow_dispatch:
   push:
     paths:
       - "azure/**"
       - ".github/workflows/azure.yml"
+
 permissions:
   id-token: write
   contents: read
+
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
@@ -49,7 +52,23 @@ jobs:
         run: |
           $repos = '${{ steps.list_repos.outputs.repositories }}' | ConvertFrom-Json
           foreach ($repo in $repos) {
-            # The enabling GitHub Pages script remains unchanged
+            $url = "https://api.github.com/repos/${{ github.actor }}/$repo/pages"
+            $body = @{
+              source = @{ branch = "main"; path = "/" }
+              cname = "$repo.cloud-docs.info"
+              https_enforced = $true
+            }
+            $bodyJson = $body | ConvertTo-Json -Compress
+            $headers = @{
+              "Authorization" = "Bearer ${{ secrets.GH_TOKEN }}"
+              "Accept" = "application/vnd.github.v3+json"
+            }
+            try {
+              Invoke-RestMethod -Uri $url -Method Post -Body $bodyJson -Headers $headers
+              Write-Host "Successfully enabled GitHub Pages for ${repo}."
+            } catch {
+              Write-Host "Attempt to enable GitHub Pages failed for ${repo}: $_"
+            }
           }
         shell: pwsh
         env:
@@ -73,7 +92,6 @@ jobs:
               "Accept" = "application/vnd.github.v3+json"
             }
             try {
-              Write-Host "Creating CNAME file in ${repo}..."
               Invoke-RestMethod -Uri $url -Method Put -Body $bodyJson -Headers $headers
               Write-Host "Successfully created CNAME file in ${repo}."
             } catch {
