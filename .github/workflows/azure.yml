@@ -37,7 +37,7 @@ jobs:
             const response = await github.rest.repos.listForAuthenticatedUser();
             const repoNames = response.data.map(repo => repo.name);
             console.log(repoNames);
-            core.setOutput('repositories', JSON.stringify(repoNames))
+            core.setOutput('repositories', JSON.stringify(repoNames));
 
       - name: Deploy Azure DNS resources
         id: deploy_dns
@@ -48,65 +48,35 @@ jobs:
           eval $command
           echo "::set-output name=domain_name::${{ github.event.repository.name }}.cloud-docs.info"
 
-      - name: Create /docs directory and README.md for each repository
-        run: |
-          $repos = '${{ steps.list_repos.outputs.repositories }}' | ConvertFrom-Json
-          foreach ($repo in $repos) {
-            $url = "https://api.github.com/repos/${{ github.actor }}/$repo/contents/docs/README.md"
-            $body = @{
-              message = "Create /docs and README.md for GitHub Pages"
-              content = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes("# Welcome to GitHub Pages\nThis is a default README.md in the /docs directory"))
-              branch = "main"
-            }
-            $bodyJson = $body | ConvertTo-Json -Compress
-            $headers = @{
-              "Authorization" = "Bearer ${{ secrets.GH_TOKEN }}"
-              "Accept" = "application/vnd.github.v3+json"
-            }
-            try {
-              Invoke-RestMethod -Uri $url -Method Put -Body $bodyJson -Headers $headers
-              Write-Host "Successfully created /docs and README.md for ${repo}."
-            } catch {
-              Write-Host "Failed to create /docs and README.md for ${repo}: $_"
-            }
-          }
-        shell: pwsh
-        env:
-          GH_TOKEN: ${{ secrets.GH_TOKEN }}
-
       - name: Enable GitHub Pages and set custom domain for each repository
         run: |
           $repos = '${{ steps.list_repos.outputs.repositories }}' | ConvertFrom-Json
           foreach ($repo in $repos) {
             $url = "https://api.github.com/repos/${{ github.actor }}/$repo/pages"
+            $body = @{
+              source = @{ branch = "main"; path = "/" }
+              cname = "$repo.cloud-docs.info"
+              https_enforced= $true
+            }
+            $bodyJson = $body | ConvertTo-Json -Compress
+            $base64AuthInfo = [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes(":${{ secrets.GH_TOKEN }}"))
             $headers = @{
               "Authorization" = "Bearer ${{ secrets.GH_TOKEN }}"
               "Accept" = "application/vnd.github+json"
               "Content-Type" = "application/json"
             }
-            $body = @{
-              source = @{ branch = "main"; path = "/docs" }
-              cname = "$repo.cloud-docs.info"
-              https_enforced= $true
-            }
-            $bodyJson = $body | ConvertTo-Json -Compress
             try {
-              $currentPageConfig = Invoke-RestMethod -Uri $url -Method Get -Headers $headers
-              if ($null -ne $currentPageConfig.cname -and $currentPageConfig.cname -eq $body.cname) {
-                Write-Host "GitHub Pages configuration for $repo is already up to date."
-              } else {
-                Write-Host "Updating GitHub Pages configuration for ${repo}..."
-                Invoke-RestMethod -Uri $url -Method Put -Body $bodyJson -Headers $headers
-                Write-Host "Successfully updated GitHub Pages configuration for ${repo}."
-              }
+              Invoke-RestMethod -Uri $url -Method Post -Body $bodyJson -Headers $headers
             } catch {
-              Write-Host "Attempt to enable or update GitHub Pages failed for ${repo}: $_"
-              try {
-                Write-Host "Attempting to enable GitHub Pages for ${repo}..."
-                Invoke-RestMethod -Uri $url -Method Post -Body $bodyJson -Headers $headers
-                Write-Host "Successfully enabled GitHub Pages for ${repo}."
-              } catch {
-                Write-Host "Failed to enable GitHub Pages for ${repo}: $_"
+              if ($_.Exception.Response.StatusCode -eq 422) {
+                try {
+                  Invoke-RestMethod -Uri $url -Method Put -Body $bodyJson -Headers $headers
+                  Write-Host "Successfully updated GitHub Pages configuration for ${repo}."
+                } catch {
+                  Write-Host "Failed to update GitHub Pages configuration for ${repo}: $_"
+                }
+              } else {
+                Write-Host "Attempt to enable GitHub Pages or set domain failed for ${repo}: $_"
               }
             }
           }
