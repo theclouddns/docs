@@ -14,7 +14,6 @@ permissions:
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -49,24 +48,18 @@ jobs:
           eval $command
           echo "::set-output name=domain_name::${{ github.event.repository.name }}.cloud-docs.info"
 
-      - name: Enable GitHub Pages for all repositories
+      - name: Enable GitHub Pages and set custom domain for each repository
         run: |
-          $repos = '${{ fromJson(steps.list_repos.outputs.repositories) }}' | ConvertFrom-Json
+          $repos = '${{ steps.list_repos.outputs.repositories }}' | ConvertFrom-Json
           foreach ($repo in $repos) {
-            $url = "https://api.github.com/repos/theclouddns/$repo/pages"
+            $url = "https://api.github.com/repos/${{ github.actor }}/$repo/pages"
             $body = @{
-              source = @{
-                branch = "main"
-                path = "/docs"
-              }
+              source = @{ branch = "main"; path = "/docs" }
               cname = "$repo.cloud-docs.info"
               https_enforced = $true
-            } | ConvertTo-Json
-            Invoke-RestMethod -Uri $url -Method Post -Body $body -Headers @{
-              "Accept" = "application/vnd.github+json"
-              "Authorization" = "Bearer ${{ secrets.GH_TOKEN }}"
-              "X-GitHub-Api-Version" = "2022-11-28"
-            }
+            } | ConvertTo-Json -Compress
+            $base64AuthInfo = [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes(":${{ secrets.GH_TOKEN }}"))
+            Invoke-RestMethod -Uri $url -Method Post -Body $body -ContentType "application/json" -Headers @{Authorization=("Basic {0}" -f $base64AuthInfo)}
           }
         shell: pwsh
         env:
