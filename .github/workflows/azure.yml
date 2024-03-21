@@ -63,15 +63,15 @@ jobs:
               Invoke-RestMethod -Uri $url -Method Post -Body $body -ContentType "application/json" -Headers @{Authorization=("Basic {0}" -f $base64AuthInfo)}
             } catch {
               if ($_.Exception.Response.StatusCode -eq 'UnprocessableEntity') {
-                # If GitHub Pages is already enabled, update the configuration
+                
                 try {
                   Invoke-RestMethod -Uri $url -Method Patch -Body $body -ContentType "application/json" -Headers @{Authorization=("Basic {0}" -f $base64AuthInfo)}
-                  Write-Host "Successfully updated GitHub Pages configuration for $repo."
+                  Write-Host "Successfully updated GitHub Pages configuration for ${repo}."
                 } catch {
-                  Write-Host "Failed to update GitHub Pages configuration for $repo: $_"
+                  Write-Host "Failed to update GitHub Pages configuration for ${repo}: $_"
                 }
               } else {
-                Write-Host "Attempt to enable GitHub Pages or set domain failed for $repo: $_"
+                Write-Host "Attempt to enable GitHub Pages or set domain failed for ${repo}: $_"
               }
             }
           }
