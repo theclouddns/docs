@@ -62,8 +62,7 @@ jobs:
             try {
               Invoke-RestMethod -Uri $url -Method Post -Body $body -ContentType "application/json" -Headers @{Authorization=("Basic {0}" -f $base64AuthInfo)}
             } catch {
-              if ($_.Exception.Response.StatusCode -eq 'UnprocessableEntity') {
-                
+              if ($_.Exception.Response.StatusCode -eq 422) { # Unprocessable Entity
                 try {
                   Invoke-RestMethod -Uri $url -Method Patch -Body $body -ContentType "application/json" -Headers @{Authorization=("Basic {0}" -f $base64AuthInfo)}
                   Write-Host "Successfully updated GitHub Pages configuration for ${repo}."
