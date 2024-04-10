@@ -44,11 +44,12 @@ jobs:
             Write-Host "Failed to list GitHub repositories: $_"
             exit 1
           }
+        shell: pwsh
 
       - name: Deploy Azure DNS resources
         id: deploy_dns
         run: |
-          $githubRepositories = $env:GITHUB_REPOSITORIES
+          $githubRepositories = '${{ steps.list_repos.outputs.repository_names }}'
           $command = "az deployment group create --resource-group dns-rg --template-file azure-dns.bicep --parameters dnsZoneName='cloud-docs.info' --parameters repositoryNames=$githubRepositories"
           Write-Output $command
           Invoke-Expression $command
@@ -56,7 +57,7 @@ jobs:
 
       - name: Enable GitHub Pages and set custom domain for each repository
         run: |
-          $repos = $env:GITHUB_REPOSITORIES | ConvertFrom-Json
+          $repos = '${{ steps.list_repos.outputs.repository_names }}' | ConvertFrom-Json
           foreach ($repo in $repos) {
             $url = "https://api.github.com/repos/${env:GITHUB_ACTOR}/$repo/pages"
             $body = @{
@@ -76,10 +77,11 @@ jobs:
               Write-Host "Attempt to enable GitHub Pages failed for ${repo}: $_"
             }
           }
+        shell: pwsh
 
       - name: Create CNAME file for custom domain
         run: |
-          $repos = $env:GITHUB_REPOSITORIES | ConvertFrom-Json
+          $repos = '${{ steps.list_repos.outputs.repository_names }}' | ConvertFrom-Json
           foreach ($repo in $repos) {
             $cnameContent = "$repo.cloud-docs.info"
             $cnameEncodedContent = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($cnameContent))
@@ -101,6 +103,7 @@ jobs:
               Write-Host "Failed to create CNAME file in ${repo}: $_"
             }
           }
+        shell: pwsh
 
       - name: Deployed cloud-docs.info azure resources
         run: az network dns record-set list --resource-group dns-rg --zone-name "cloud-docs.info"
