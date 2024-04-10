@@ -30,29 +30,35 @@ jobs:
 
       - name: List GitHub Repositories
         id: list_repos
-        uses: actions/github-script@v5
-        with:
-          github-token: ${{ secrets.GH_TOKEN }}
-          script: |
-            const response = await github.rest.repos.listForAuthenticatedUser();
-            const repoNames = response.data.map(repo => repo.name);
-            console.log(repoNames);
-            core.setOutput('repositories', JSON.stringify(repoNames));
+        run: |
+          $url = "https://api.github.com/user/repos"
+          $headers = @{
+            "Authorization" = "token $env:GITHUB_TOKEN"
+            "Accept" = "application/vnd.github.v3+json"
+          }
+          try {
+            $response = Invoke-RestMethod -Uri $url -Headers $headers
+            $repoNames = $response | ForEach-Object { $_.name }
+            Write-Output $repoNames
+          } catch {
+            Write-Host "Failed to list GitHub repositories: $_"
+            exit 1
+          }
 
       - name: Deploy Azure DNS resources
         id: deploy_dns
         run: |
-          githubRepositories='${{ steps.list_repos.outputs.repositories }}'
-          command="az deployment group create --resource-group dns-rg --template-file azure-dns.bicep --parameters dnsZoneName='cloud-docs.info' --parameters repositoryNames=\$githubRepositories"
-          echo $command
-          eval $command
-          echo "::set-output name=domain_name::${{ github.event.repository.name }}.cloud-docs.info"
+          $githubRepositories = $env:GITHUB_REPOSITORIES
+          $command = "az deployment group create --resource-group dns-rg --template-file azure-dns.bicep --parameters dnsZoneName='cloud-docs.info' --parameters repositoryNames=$githubRepositories"
+          Write-Output $command
+          Invoke-Expression $command
+          Write-Output "::set-output name=domain_name::${{ github.event.repository.name }}.cloud-docs.info"
 
       - name: Enable GitHub Pages and set custom domain for each repository
         run: |
-          $repos = '${{ steps.list_repos.outputs.repositories }}' | ConvertFrom-Json
+          $repos = $env:GITHUB_REPOSITORIES | ConvertFrom-Json
           foreach ($repo in $repos) {
-            $url = "https://api.github.com/repos/${{ github.actor }}/$repo/pages"
+            $url = "https://api.github.com/repos/${env:GITHUB_ACTOR}/$repo/pages"
             $body = @{
               source = @{ branch = "main"; path = "/" }
               cname = "$repo.cloud-docs.info"
@@ -60,7 +66,7 @@ jobs:
             }
             $bodyJson = $body | ConvertTo-Json -Compress
             $headers = @{
-              "Authorization" = "Bearer ${{ secrets.GH_TOKEN }}"
+              "Authorization" = "Bearer $env:GITHUB_TOKEN"
               "Accept" = "application/vnd.github.v3+json"
             }
             try {
@@ -70,17 +76,14 @@ jobs:
               Write-Host "Attempt to enable GitHub Pages failed for ${repo}: $_"
             }
           }
-        shell: pwsh
-        env:
-          GH_TOKEN: ${{ secrets.GH_TOKEN }}
 
       - name: Create CNAME file for custom domain
         run: |
-          $repos = '${{ steps.list_repos.outputs.repositories }}' | ConvertFrom-Json
+          $repos = $env:GITHUB_REPOSITORIES | ConvertFrom-Json
           foreach ($repo in $repos) {
             $cnameContent = "$repo.cloud-docs.info"
             $cnameEncodedContent = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($cnameContent))
-            $url = "https://api.github.com/repos/${{ github.actor }}/$repo/contents/CNAME"
+            $url = "https://api.github.com/repos/${env:GITHUB_ACTOR}/$repo/contents/CNAME"
             $body = @{
               message = "Create CNAME for GitHub Pages custom domain"
               content = $cnameEncodedContent
@@ -88,7 +91,7 @@ jobs:
             }
             $bodyJson = $body | ConvertTo-Json -Compress
             $headers = @{
-              "Authorization" = "Bearer ${{ secrets.GH_TOKEN }}"
+              "Authorization" = "Bearer $env:GITHUB_TOKEN"
               "Accept" = "application/vnd.github.v3+json"
             }
             try {
@@ -98,9 +101,6 @@ jobs:
               Write-Host "Failed to create CNAME file in ${repo}: $_"
             }
           }
-        shell: pwsh
-        env:
-          GH_TOKEN: ${{ secrets.GH_TOKEN }}
 
       - name: Deployed cloud-docs.info azure resources
         run: az network dns record-set list --resource-group dns-rg --zone-name "cloud-docs.info"
